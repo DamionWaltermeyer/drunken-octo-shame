@@ -1,9 +1,10 @@
+#Creates a ToDo list at the commandline
 var fs = require('fs');
 var path = require('path');
 var args = process.argv.splice(2);
 var command = args.shift();
 var taskDescription = args.join('  ');
-var file = path.join(process.cwd(), '/.tasks');
+var file = path.join(process.cwd(), '/.tasks'); #task list saved here
 
 switch(command){
   case 'list':
