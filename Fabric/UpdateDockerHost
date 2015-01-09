@@ -1,0 +1,21 @@
+
+@task
+#@parallel  remove these two # and define role 'docker' as all your docker hosts for extra adrenaline. 
+#@roles('docker')
+def UpdateDockerHost():
+    # Get list of running containers and add the container ID to array
+    containers = run('docker ps -q').splitlines()
+    for container in containers:
+        print container   # this is to reference via console if problems later.
+    run('apt-get update && apt-get -y dist-upgrade && apt-get install -y lxc-docker && apt-get -y autoremove')
+    print "Rebooting" + env.host
+    reboot(wait=300)  #very fast on virtual hosts
+    if (_is_host_up(env.host, int(env.port))):  #you'll need to make your own check here
+        linuxImagePresent = run('dpkg -s "linux-image-extra-`uname -r`" 2> /dev/null | grep "Status: install ok installed" | wc -l')
+        if linuxImagePresent == "0":
+            #print 'this is the check' + linuxImagePresent
+            run("apt-get install -y linux-image-extra-`uname -r` && service docker restart")
+        # Restart Containers
+        for container in containers:
+            run('docker start '+ container)
+            #print 'docker start '+ container
