@@ -4,5 +4,5 @@
 #Pair this up with a configuration manager to put on docker hosts and run at boot. 
 #If you find you have another frequently occuring exit code, just change this and have it run twice.
 #log size estimated to be ~10M per month , change sleep to effect frequency & log size.
-#manual usage:   restart-on-error.sh &>> DockerRestart.log &
+#manual usage:   ./restart-on-error.sh &>/dev/null &
 while true; do docker start $(docker ps -a |grep '(-1)'| grep minutes|cut -d" " -f 1); sleep 120; done
