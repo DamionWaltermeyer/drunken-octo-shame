@@ -1,0 +1,23 @@
+@task
+@parallel
+def iptablesList():
+    """returns non-docker rules for iptables  of each  host"""
+    iptablesRules = run("iptables-save |grep -v DOCKER|grep -v POSTROUTING|grep -v docker0").splitlines()
+    with warn_only():
+        if iptablesRules:
+            local('mkdir -p Reports')
+            hostName = run('hostname')
+            print("Clearing old log of :./Reports/"+hostName.replace('.', '-')+"-iptables-Rules.txt")
+            local("rm -f ./Reports/"+hostName.replace('.', '-')+"-iptables-Rules.txt")
+            for ruleLine in iptablesRules:
+                local("echo "+ruleLine+" >> ./Reports/"+hostName.replace('.', '-')+"-iptables-Rules.txt")
+            local("cat Reports/"+hostName.replace('.', '-')+"-iptables-Rules.txt")
+    
+
+@task
+@runs_once
+def allIptablesRules():
+    """ diffs and sorts for uniques in all iptables rules to see if any odd rules are in place"""
+    execute(iptablesList)
+    roleToUse = str(env.roles[0])
+    local("cd ./Reports/ && cat *iptables*|grep -v \":\"|sort -u > ./iptables-"+roleToUse+"-sorted.txt")
