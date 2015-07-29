@@ -1,11 +1,18 @@
 @task
+@parallel
 def UpdateDockerHost():
     """DH: Notes running containers on Host, apt-get updates, dist-upgrades, lxc-docker & autoremoves, reboots,checksforlinuximage & restarts containers"""
     # Get list of running containers and add the container ID to array
-    containers = run("docker ps |awk \'{print $2}\'").splitlines()
+    containers = run("docker ps |awk \'{print $NF}\'").splitlines()
     for container in containers:
         print container   # this is to reference via console if problems later.
-    run('apt-get update && apt-get -y dist-upgrade && apt-get install -y lxc-docker && apt-get -y autoremove')
+    # installKdump()
+    run('env DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y dist-upgrade && apt-get install -y lxc-docker && apt-get -y autoremove')
+    if (exists('/var/lib/docker/aufs')):
+        run('rm -rf /var/lib/docker/devicemapper');
+    else:
+        print "Nope! - AUFS NOT FOUND!"
+
     print "Rebooting" + env.host
     reboot(wait=300)
     if (_is_host_up(env.host, int(env.port))):
@@ -16,6 +23,7 @@ def UpdateDockerHost():
         # Restart Containers
         for container in containers:
             with warn_only():
-                if (run('ls /etc/init/'+container+'.conf')  == ('ls: cannot access /init/etc/'+container+'.conf: No such file or directory')):
-                    run('docker start '+ container)
-                    #print 'docker start '+ container
+                if len(container) > 4:
+		    if (run('ls /etc/init/'+container+'.conf')  == ('ls: cannot access /init/etc/'+container+'.conf: No such file or directory')):
+                        run('docker start '+ container)
+                        #print 'docker start '+ container
