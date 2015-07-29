@@ -6,7 +6,6 @@ def UpdateDockerHost():
     containers = run("docker ps |awk \'{print $NF}\'").splitlines()
     for container in containers:
         print container   # this is to reference via console if problems later.
-    # installKdump()
     run('env DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y dist-upgrade && apt-get install -y lxc-docker && apt-get -y autoremove')
     if (exists('/var/lib/docker/aufs')):
         run('rm -rf /var/lib/docker/devicemapper');
