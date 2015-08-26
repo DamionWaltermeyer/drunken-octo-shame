@@ -21,3 +21,12 @@ def allIptablesRules():
     execute(iptablesList)
     roleToUse = str(env.roles[0])
     local("cd ./Reports/ && cat *iptables*|grep -v \":\"|sort -u > ./iptables-"+roleToUse+"-sorted.txt")
+
+@task
+@parallel
+def TEMPLATENAME():
+    """ Allows port REASON"""
+    run('iptables RULES -m comment --comment "Existentalism"')
+    run('iptables RULES -m comment --comment "Essentialism"')
+    
+    
