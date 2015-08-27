@@ -1,3 +1,7 @@
+#THIS FILE IS BITS AND PIECES OF FABRIC FILES. 
+#EACH TASK IS USUALLY MISSING SOMETHING UNLESS YOU TAILOR IT TO YOUR ENVIRONMENT.
+
+
 @task
 @parallel
 def iptablesList():
@@ -22,11 +26,101 @@ def allIptablesRules():
     roleToUse = str(env.roles[0])
     local("cd ./Reports/ && cat *iptables*|grep -v \":\"|sort -u > ./iptables-"+roleToUse+"-sorted.txt")
 
+
 @task
 @parallel
 def TEMPLATENAME():
     """ Allows port REASON"""
-    run('iptables RULES -m comment --comment "Existentalism"')
+    #Add to current iptables list, but doesn't save it. Can haz commentz.
     run('iptables RULES -m comment --comment "Essentialism"')
+    #Add to rules.v4 file to be used later, Can NOT haz commentz.
+    run('echo "RULES" >> /etc/iptables/rules.v4')  #Why this rule is here.
+    
+
+@task
+@parallel
+def iptables_access_clear():
+    run('iptables -P INPUT ACCEPT')
+    run('iptables -P FORWARD ACCEPT')
+    run('iptables -P OUTPUT ACCEPT')
+    run('iptables -F')
+    run('iptables -X')
+
+@task
+@parallel
+def iptables_template_mangle1():
+    """ Writes out first part of iptables rules file, mangle table."""
+    run('echo "*mangle" >> /etc/iptables/rules.v4')
+    run('echo ":PREROUTING ACCEPT [0:0]" >> /etc/iptables/rules.v4')
+    run('echo ":INPUT ACCEPT [0:0]" >> /etc/iptables/rules.v4')
+    run('echo ":FORWARD ACCEPT [0:0]" >> /etc/iptables/rules.v4')
+    run('echo ":OUTPUT ACCEPT [0:0]" >> /etc/iptables/rules.v4')
+    run('echo ":POSTROUTING ACCEPT [0:0]" >> /etc/iptables/rules.v4')
+    run('echo "COMMIT" >> /etc/iptables/rules.v4')
+    
+@task
+@parallel
+def block_port25_iptables():
+    """ Blocks port 25 to prevent us becoming a spam relay. Also inside rules file."""
+    run('echo "-I INPUT 1  -p tcp --dport 25 -j DROP " >> /etc/iptables/rules.v4')
+    run('echo "-I INPUT 1  -p udp --dport 25 -j DROP " >> /etc/iptables/rules.v4')
+    
+
+    
+@task
+@parallel
+def create_IP_Rules_By_Host():
+    """ Sets up Iptables service, creates tailored rules file and saves it, restarts appropriate services and containers."""
+    #gather containers to know what to restart via service call at the end.
+    containers = run("docker ps |awk \'{print $NF}\'").splitlines()
+    for container in containers:
+        print container #for records/console purposes   
+
+    # Make sure not to lock ourselves out.
+    iptables_access_clear() #sets chains to ACCEPT all policy then clears rules in prep for next steps.
+    #install iptables-persistent
+    setup_iptables_service()
+    #clear existing rules file
+    run('rm -f /etc/iptables/rules.v4')
+    #logic by host to run allow and block rules by host.
+    iptables_template_mangle1()
+    iptables_template_nat2()
+    iptables_template_filter3()
+    block_port25_iptables()  # prevent us from being a spam relay - default rule
+    allow_portSSH_iptables() 
+    host = Host.getHostByAddr(env.host)
+    print host
+    if "dns" in host:
+        print "DNS SERVER RULE ADDED"
+        allow_port53_iptables()  #DNS servers
+    elif "dev-dns" in host:
+        print "DNS SERVER RULE ADDED"
+        allow_port53_iptables()  #DNS servers
+    if "stun" in host:
+        print "STUN SERVER RULE ADDED"
+        allow_port3478_iptables()  #STUN servers
+    if "speed" in host:
+        print "DOCKER MANAGER RULE ADDED"
+        allow_port5000_iptables()  #Speed servers - Docker Manager
+    elif "dev-speed" in host:
+        print "DOCKER MANAGER RULE ADDED"
+        allow_port5000_iptables()  #Speed servers - Docker Manager
+    elif "ft-speed" in host:
+        print "DOCKER MANAGER RULE ADDED"
+        allow_port5000_iptables()  #Speed servers - Docker Manager
+    update_docker_rules()  # allow docker containers to talk to one another.           
+    #Put a COMMIT entry at the end.
+    iptables_finish_last()
+    #save rules and iptables-restore them
+    run('cat /etc/iptables/rules.v4 | iptables-restore')
+    #restart containers.
+    with warn_only():
+        run('stop docker')
+    run('start docker')
+    for container in containers:
+        with warn_only():
+            run('start '+container) 
+            run('docker start '+container)    #In case container doesn't have a service
     
     
+
