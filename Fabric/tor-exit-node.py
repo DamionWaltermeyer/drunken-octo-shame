@@ -21,3 +21,12 @@ def getTorList():
     for i in blocklist:
 	with warn_only():
 	    run('ipset add tor_exit '+ i)
+	    
+	    
+@task
+def implementTorList():
+    """ uses block list tor_exit to block chains"""
+    run('iptables -I INPUT 1 -m set --match-set tor_exit src -j DROP')
+    run('iptables -I OUTPUT 1 -m set --match-set tor_exit src -j DROP')
+    run('iptables -I DOCKER 1 -m set --match-set tor_exit src -j DROP')
+    run('iptables -I FORWARD 1 -m set --match-set tor_exit src -j DROP')
